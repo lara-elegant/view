@@ -2,10 +2,6 @@
 
 namespace Elegant\View\Engines;
 
-use Closure;
-use InvalidArgumentException;
-use Elegant\Contracts\View\Engine as EngineInterface;
-
 class EngineResolver
 {
     /**
@@ -31,7 +27,7 @@ class EngineResolver
      * @param  \Closure  $resolver
      * @return void
      */
-    public function register($engine, Closure $resolver)
+    public function register($engine, \Closure $resolver)
     {
         unset($this->resolved[$engine]);
 
@@ -42,8 +38,8 @@ class EngineResolver
      * Resolver an engine instance by name.
      *
      * @param  string  $engine
-     * @return EngineInterface
-     * @throws InvalidArgumentException
+     * @return \Elegant\Contracts\View\Engine
+     * @throws \InvalidArgumentException
      */
     public function resolve($engine)
     {
@@ -55,6 +51,6 @@ class EngineResolver
             return $this->resolved[$engine] = call_user_func($this->resolvers[$engine]);
         }
 
-        throw new InvalidArgumentException("Engine $engine not found.");
+        throw new \InvalidArgumentException("Engine $engine not found.");
     }
 }

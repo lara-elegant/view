@@ -2,29 +2,33 @@
 
 namespace Elegant\View;
 
-use Exception;
-use Throwable;
 use ArrayAccess;
 use BadMethodCallException;
-use Elegant\Contracts\View\Engine;
-use Elegant\Contracts\View\View as ViewContract;
 use Elegant\Contracts\Support\Arrayable;
 use Elegant\Contracts\Support\Renderable;
+use Elegant\Contracts\View\Engine;
+use Elegant\Contracts\View\View as ViewContract;
 use Elegant\Support\Str;
+use Elegant\Support\Traits\Macroable;
+use Throwable;
 
 class View implements ArrayAccess, ViewContract
 {
+    use Macroable {
+        __call as macroCall;
+    }
+
     /**
      * The view factory instance.
      *
-     * @var Factory
+     * @var \Elegant\View\Factory
      */
     protected $factory;
 
     /**
      * The engine implementation.
      *
-     * @var Engine
+     * @var \Elegant\Contracts\View\Engine
      */
     protected $engine;
 
@@ -52,8 +56,8 @@ class View implements ArrayAccess, ViewContract
     /**
      * Create a new view instance.
      *
-     * @param  Factory  $factory
-     * @param  Engine  $engine
+     * @param  \Elegant\View\Factory  $factory
+     * @param  \Elegant\Contracts\View\Engine  $engine
      * @param  string  $view
      * @param  string  $path
      * @param  mixed  $data
@@ -75,7 +79,7 @@ class View implements ArrayAccess, ViewContract
      * @param  callable|null  $callback
      * @return string
      *
-     * @throws Throwable
+     * @throws \Throwable
      */
     public function render(callable $callback = null)
     {
@@ -90,7 +94,7 @@ class View implements ArrayAccess, ViewContract
             $this->factory->flushStateIfDoneRendering();
 
             return ! is_null($response) ? $response : $contents;
-        } catch (Exception | Throwable $e) {
+        } catch (Throwable $e) {
             $this->factory->flushState();
 
             throw $e;
@@ -151,6 +155,8 @@ class View implements ArrayAccess, ViewContract
      * Get the sections of the rendered view.
      *
      * @return string
+     *
+     * @throws \Throwable
      */
     public function renderSections()
     {
@@ -244,7 +250,7 @@ class View implements ArrayAccess, ViewContract
     /**
      * Get the view factory instance.
      *
-     * @return Factory
+     * @return \Elegant\View\Factory
      */
     public function getFactory()
     {
@@ -254,7 +260,7 @@ class View implements ArrayAccess, ViewContract
     /**
      * Get the view's rendering engine.
      *
-     * @return Engine
+     * @return \Elegant\Contracts\View\Engine
      */
     public function getEngine()
     {
@@ -267,6 +273,7 @@ class View implements ArrayAccess, ViewContract
      * @param  string  $key
      * @return bool
      */
+    #[\ReturnTypeWillChange]
     public function offsetExists($key)
     {
         return array_key_exists($key, $this->data);
@@ -278,6 +285,7 @@ class View implements ArrayAccess, ViewContract
      * @param  string  $key
      * @return mixed
      */
+    #[\ReturnTypeWillChange]
     public function offsetGet($key)
     {
         return $this->data[$key];
@@ -290,6 +298,7 @@ class View implements ArrayAccess, ViewContract
      * @param  mixed   $value
      * @return void
      */
+    #[\ReturnTypeWillChange]
     public function offsetSet($key, $value)
     {
         $this->with($key, $value);
@@ -301,6 +310,7 @@ class View implements ArrayAccess, ViewContract
      * @param  string  $key
      * @return void
      */
+    #[\ReturnTypeWillChange]
     public function offsetUnset($key)
     {
         unset($this->data[$key]);
@@ -356,12 +366,16 @@ class View implements ArrayAccess, ViewContract
      *
      * @param  string  $method
      * @param  array   $parameters
-     * @return View
+     * @return \Elegant\View\View
      *
-     * @throws BadMethodCallException
+     * @throws \BadMethodCallException
      */
     public function __call($method, $parameters)
     {
+        if (static::hasMacro($method)) {
+            return $this->macroCall($method, $parameters);
+        }
+
         if (! Str::startsWith($method, 'with')) {
             throw new BadMethodCallException("Method [$method] does not exist on view.");
         }
@@ -370,10 +384,23 @@ class View implements ArrayAccess, ViewContract
     }
 
     /**
+     * Get content as a string of HTML.
+     *
+     * @return string
+     *
+     * @throws \Throwable
+     */
+    public function toHtml()
+    {
+        return $this->render();
+    }
+
+    /**
      * Get the string contents of the view.
      *
      * @return string
-     * @throws Throwable
+     *
+     * @throws \Throwable
      */
     public function __toString()
     {

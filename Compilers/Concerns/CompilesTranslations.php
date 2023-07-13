@@ -16,9 +16,9 @@ trait CompilesTranslations
             return '<?php $__env->startTranslation(); ?>';
         } elseif ($expression[1] === '[') {
             return "<?php \$__env->startTranslation{$expression}; ?>";
-        } else {
-            return "<?php echo app('translator')->getFromJson{$expression}; ?>";
         }
+
+        return "<?php echo trans{$expression}; ?>";
     }
 
     /**
@@ -29,16 +29,5 @@ trait CompilesTranslations
     protected function compileEndlang()
     {
         return '<?php echo $__env->renderTranslation(); ?>';
-    }
-
-    /**
-     * Compile the choice statements into valid PHP.
-     *
-     * @param  string  $expression
-     * @return string
-     */
-    protected function compileChoice($expression)
-    {
-        return "<?php echo app('translator')->choice{$expression}; ?>";
     }
 }

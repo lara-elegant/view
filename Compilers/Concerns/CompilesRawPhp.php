@@ -12,7 +12,11 @@ trait CompilesRawPhp
      */
     protected function compilePhp($expression)
     {
-        return $expression ? "<?php {$expression}; ?>" : '<?php ';
+        if ($expression) {
+            return"<?php {$expression}; ?>";
+        }
+
+        return '<?php ';
     }
 
     /**

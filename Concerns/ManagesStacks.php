@@ -2,8 +2,6 @@
 
 namespace Elegant\View\Concerns;
 
-use InvalidArgumentException;
-
 trait ManagesStacks
 {
     /**
@@ -54,7 +52,7 @@ trait ManagesStacks
     public function stopPush()
     {
         if (empty($this->pushStack)) {
-            throw new InvalidArgumentException('Cannot end a push stack without first starting one.');
+            throw new \InvalidArgumentException('Cannot end a push stack without first starting one.');
         }
 
         return tap(array_pop($this->pushStack), function ($last) {
@@ -104,12 +102,13 @@ trait ManagesStacks
      * Stop prepending content into a push section.
      *
      * @return string
+     *
      * @throws \InvalidArgumentException
      */
     public function stopPrepend()
     {
         if (empty($this->pushStack)) {
-            throw new InvalidArgumentException('Cannot end a prepend operation without first starting one.');
+            throw new \InvalidArgumentException('Cannot end a prepend operation without first starting one.');
         }
 
         return tap(array_pop($this->pushStack), function ($last) {

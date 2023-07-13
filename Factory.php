@@ -2,33 +2,33 @@
 
 namespace Elegant\View;
 
-use Closure;
-use InvalidArgumentException;
-use Elegant\Support\Arr;
-use Elegant\Support\Str;
-use Elegant\View\Engines\EngineResolver;
 use Elegant\Contracts\Support\Arrayable;
 use Elegant\Contracts\View\Factory as FactoryContract;
-use Elegant\Contracts\View\Engine;
+use Elegant\Support\Arr;
+use Elegant\Support\Str;
+use Elegant\Support\Traits\Macroable;
+use Elegant\View\Engines\EngineResolver;
 
 class Factory implements FactoryContract
 {
-    use Concerns\ManagesComponents,
+    use Macroable,
+        Concerns\ManagesComponents,
         Concerns\ManagesLayouts,
         Concerns\ManagesLoops,
-        Concerns\ManagesStackS;
+        Concerns\ManagesStacks,
+        Concerns\ManagesTranslations;
 
     /**
      * The engine implementation.
      *
-     * @var EngineResolver
+     * @var \Elegant\View\Engines\EngineResolver
      */
     protected $engines;
 
     /**
      * The view finder implementation.
      *
-     * @var ViewFinderInterface
+     * @var \Elegant\View\ViewFinderInterface
      */
     protected $finder;
 
@@ -59,10 +59,17 @@ class Factory implements FactoryContract
     protected $renderCount = 0;
 
     /**
+     * The "once" block IDs that have been rendered.
+     *
+     * @var array
+     */
+    protected $renderedOnce = [];
+
+    /**
      * Create a new view factory instance.
      *
-     * @param  EngineResolver  $engines
-     * @param  ViewFinderInterface  $finder
+     * @param  \Elegant\View\Engines\EngineResolver  $engines
+     * @param  \Elegant\View\ViewFinderInterface  $finder
      * @return void
      */
     public function __construct(EngineResolver $engines, ViewFinderInterface $finder)
@@ -77,9 +84,9 @@ class Factory implements FactoryContract
      * Get the evaluated view contents for the given view.
      *
      * @param  string  $path
-     * @param  array   $data
+     * @param  \Elegant\Contracts\Support\Arrayable|array  $data
      * @param  array   $mergeData
-     * @return View
+     * @return \Elegant\Contracts\View\View
      */
     public function file($path, $data = [], $mergeData = [])
     {
@@ -94,7 +101,7 @@ class Factory implements FactoryContract
      * @param  string  $view
      * @param  array   $data
      * @param  array   $mergeData
-     * @return View
+     * @return \Elegant\Contracts\View\View
      */
     public function make($view, $data = [], $mergeData = [])
     {
@@ -110,6 +117,16 @@ class Factory implements FactoryContract
         return $this->viewInstance($view, $path, $data);
     }
 
+    /**
+     * Get the first view that actually exists from the given list.
+     *
+     * @param  array  $views
+     * @param  \Elegant\Contracts\Support\Arrayable|array  $data
+     * @param  array  $mergeData
+     * @return \Elegant\Contracts\View\View
+     *
+     * @throws \InvalidArgumentException
+     */
     public function first(array $views, $data = [], $mergeData = [])
     {
         $view = Arr::first($views, function ($view) {
@@ -117,7 +134,7 @@ class Factory implements FactoryContract
         });
 
         if (! $view) {
-            throw new InvalidArgumentException('None of the views in the given array exist.');
+            throw new \InvalidArgumentException('None of the views in the given array exist.');
         }
 
         return $this->make($view, $data, $mergeData);
@@ -128,8 +145,8 @@ class Factory implements FactoryContract
      *
      * @param  bool  $condition
      * @param  string  $view
-     * @param  array   $data
-     * @param  array   $mergeData
+     * @param  \Elegant\Contracts\Support\Arrayable|array  $data
+     * @param  array  $mergeData
      * @return string
      */
     public function renderWhen($condition, $view, $data = [], $mergeData = [])
@@ -142,10 +159,24 @@ class Factory implements FactoryContract
     }
 
     /**
+     * Get the rendered content of the view based on the negation of a given condition.
+     *
+     * @param  bool  $condition
+     * @param  string  $view
+     * @param  \Elegant\Contracts\Support\Arrayable|array  $data
+     * @param  array  $mergeData
+     * @return string
+     */
+    public function renderUnless($condition, $view, $data = [], $mergeData = [])
+    {
+        return $this->renderWhen(! $condition, $view, $data, $mergeData);
+    }
+
+    /**
      * Get the rendered contents of a partial from a loop.
      *
      * @param  string  $view
-     * @param  array   $data
+     * @param  array  $data
      * @param  string  $iterator
      * @param  string  $empty
      * @return string
@@ -204,8 +235,8 @@ class Factory implements FactoryContract
      *
      * @param  string  $view
      * @param  string  $path
-     * @param  array  $data
-     * @return View
+     * @param  \Elegant\Contracts\Support\Arrayable|array  $data
+     * @return \Elegant\Contracts\View\View
      */
     protected function viewInstance($view, $path, $data)
     {
@@ -222,7 +253,7 @@ class Factory implements FactoryContract
     {
         try {
             $this->finder->find($view);
-        } catch (InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException $e) {
             return false;
         }
 
@@ -233,14 +264,14 @@ class Factory implements FactoryContract
      * Get the appropriate view engine for the given path.
      *
      * @param  string  $path
-     * @return Engine
+     * @return \Elegant\Contracts\View\Engine
      *
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      */
     public function getEngineFromPath($path)
     {
         if (! $extension = $this->getExtension($path)) {
-            throw new InvalidArgumentException("Unrecognized extension in file: $path");
+            throw new \InvalidArgumentException("Unrecognized extension in file: $path");
         }
 
         $engine = $this->extensions[$extension];
@@ -252,7 +283,7 @@ class Factory implements FactoryContract
      * Get the extension used by the view file.
      *
      * @param  string  $path
-     * @return string
+     * @return string|null
      */
     protected function getExtension($path)
     {
@@ -267,7 +298,7 @@ class Factory implements FactoryContract
      * Add a piece of shared data to the environment.
      *
      * @param  array|string  $key
-     * @param  mixed  $value
+     * @param  mixed|null  $value
      * @return mixed
      */
     public function share($key, $value = null)
@@ -309,6 +340,28 @@ class Factory implements FactoryContract
     public function doneRendering()
     {
         return $this->renderCount == 0;
+    }
+
+    /**
+     * Determine if the given once token has been rendered.
+     *
+     * @param  string  $id
+     * @return bool
+     */
+    public function hasRenderedOnce(string $id)
+    {
+        return isset($this->renderedOnce[$id]);
+    }
+
+    /**
+     * Mark the given once token as having been rendered.
+     *
+     * @param  string  $id
+     * @return void
+     */
+    public function markAsRenderedOnce(string $id)
+    {
+        $this->renderedOnce[$id] = true;
     }
 
     /**
@@ -369,7 +422,7 @@ class Factory implements FactoryContract
      *
      * @param  string    $extension
      * @param  string    $engine
-     * @param  Closure  $resolver
+     * @param  \Closure  $resolver
      * @return void
      */
     public function addExtension($extension, $engine, $resolver = null)
@@ -393,9 +446,11 @@ class Factory implements FactoryContract
     public function flushState()
     {
         $this->renderCount = 0;
+        $this->renderedOnce = [];
 
         $this->flushSections();
         $this->flushStacks();
+        $this->flushComponents();
     }
 
     /**
@@ -423,7 +478,7 @@ class Factory implements FactoryContract
     /**
      * Get the engine resolver instance.
      *
-     * @return EngineResolver
+     * @return \Elegant\View\Engines\EngineResolver
      */
     public function getEngineResolver()
     {
@@ -433,7 +488,7 @@ class Factory implements FactoryContract
     /**
      * Get the view finder instance.
      *
-     * @return ViewFinderInterface
+     * @return \Elegant\View\ViewFinderInterface
      */
     public function getFinder()
     {
@@ -443,7 +498,7 @@ class Factory implements FactoryContract
     /**
      * Set the view finder instance.
      *
-     * @param  ViewFinderInterface  $finder
+     * @param  \Elegant\View\ViewFinderInterface  $finder
      * @return void
      */
     public function setFinder(ViewFinderInterface $finder)

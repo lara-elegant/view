@@ -3,14 +3,13 @@
 namespace Elegant\View\Compilers;
 
 use Elegant\Filesystem\Filesystem;
-use InvalidArgumentException;
 
 abstract class Compiler
 {
     /**
      * The Filesystem instance.
      *
-     * @var Filesystem
+     * @var \Elegant\Filesystem\Filesystem
      */
     protected $files;
 
@@ -24,16 +23,16 @@ abstract class Compiler
     /**
      * Create a new compiler instance.
      *
-     * @param Filesystem $files
+     * @param \Elegant\Filesystem\Filesystem $files
      * @param  string  $cachePath
      * @return void
      *
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      */
     public function __construct(Filesystem $files, $cachePath)
     {
         if (! $cachePath) {
-            throw new InvalidArgumentException('Please provide a valid cache path.');
+            throw new \InvalidArgumentException('Please provide a valid cache path.');
         }
 
         $this->files = $files;

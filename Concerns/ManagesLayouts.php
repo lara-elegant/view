@@ -2,7 +2,8 @@
 
 namespace Elegant\View\Concerns;
 
-use InvalidArgumentException;
+use Elegant\Contracts\View\View;
+use Elegant\Support\Str;
 
 trait ManagesLayouts
 {
@@ -28,6 +29,13 @@ trait ManagesLayouts
     protected static $parentPlaceholder = [];
 
     /**
+     * The parent placeholder salt for the request.
+     *
+     * @var string
+     */
+    protected static $parentPlaceholderSalt;
+
+    /**
      * Start injecting content into a section.
      *
      * @param  string  $section
@@ -41,7 +49,7 @@ trait ManagesLayouts
                 $this->sectionStack[] = $section;
             }
         } else {
-            $this->extendSection($section, e($content));
+            $this->extendSection($section, $content instanceof View ? $content : e($content));
         }
     }
 
@@ -54,7 +62,7 @@ trait ManagesLayouts
      */
     public function inject($section, $content)
     {
-        return $this->startSection($section, $content);
+        $this->startSection($section, $content);
     }
 
     /**
@@ -76,12 +84,12 @@ trait ManagesLayouts
      *
      * @param  bool  $overwrite
      * @return string
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      */
     public function stopSection($overwrite = false)
     {
         if (empty($this->sectionStack)) {
-            throw new InvalidArgumentException('Cannot end a section without first starting one.');
+            throw new \InvalidArgumentException('Cannot end a section without first starting one.');
         }
 
         $last = array_pop($this->sectionStack);
@@ -99,12 +107,12 @@ trait ManagesLayouts
      * Stop injecting content into a section and append it.
      *
      * @return string
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      */
     public function appendSection()
     {
         if (empty($this->sectionStack)) {
-            throw new InvalidArgumentException('Cannot end a section without first starting one.');
+            throw new \InvalidArgumentException('Cannot end a section without first starting one.');
         }
 
         $last = array_pop($this->sectionStack);
@@ -143,7 +151,7 @@ trait ManagesLayouts
      */
     public function yieldContent($section, $default = '')
     {
-        $sectionContent = e($default);
+        $sectionContent = $default instanceof View ? $default : e($default);
 
         if (isset($this->sections[$section])) {
             $sectionContent = $this->sections[$section];
@@ -165,10 +173,26 @@ trait ManagesLayouts
     public static function parentPlaceholder($section = '')
     {
         if (! isset(static::$parentPlaceholder[$section])) {
-            static::$parentPlaceholder[$section] = '##parent-placeholder-'.sha1($section).'##';
+            $salt = static::parentPlaceholderSalt();
+
+            static::$parentPlaceholder[$section] = '##parent-placeholder-'.sha1($salt.$section).'##';
         }
 
         return static::$parentPlaceholder[$section];
+    }
+
+    /**
+     * Get the parent placeholder salt.
+     *
+     * @return string
+     */
+    protected static function parentPlaceholderSalt()
+    {
+        if (! static::$parentPlaceholderSalt) {
+            return static::$parentPlaceholderSalt = Str::random(40);
+        }
+
+        return static::$parentPlaceholderSalt;
     }
 
     /**
@@ -183,15 +207,26 @@ trait ManagesLayouts
     }
 
     /**
+     * Check if section does not exist.
+     *
+     * @param  string  $name
+     * @return bool
+     */
+    public function sectionMissing($name)
+    {
+        return ! $this->hasSection($name);
+    }
+
+    /**
      * Get the contents of a section.
      *
      * @param  string  $name
-     * @param  string  $default
+     * @param  string|null  $default
      * @return mixed
      */
     public function getSection($name, $default = null)
     {
-        return isset($this->getSections()[$name]) ? $this->getSections()[$name] : $default;
+        return $this->getSections()[$name] ?? $default;
     }
 
     /**
